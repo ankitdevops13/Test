@@ -672,5 +672,3 @@ async def txt_handler(bot: Client, m: Message):
 
 
 bot.run()
-if __name__ == "__main__":
-    asyncio.run(main())
