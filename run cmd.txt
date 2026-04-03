@@ -1,2 +1,2 @@
-gunicorn app:app & python-3.10.13 modules/main.py
+gunicorn app:app & python3 modules/main.py
 python keep_alive.py
