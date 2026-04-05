@@ -30,6 +30,14 @@ from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import base64
 import datetime
+import urllib3
+import warnings
+
+# Disable warnings gracefully
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Ya phir warnings module se
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
 
 
 photologo = 'https://tinypic.host/images/2025/02/07/DeWatermark.ai_1738952933236-1.png'
@@ -52,7 +60,6 @@ bot = Client(
 )
 
 auth_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNzM0MTA1OTA2NCIsInRnX3VzZXJuYW1lIjoiQEFua2l0U2hha3lhIiwiaWF0IjoxNzU4MjcxNjg1fQ.xdRrrm3xkWr8kDZFblSowp1syOnwjPQRtXOBX0N5ZAk"
-
 
 
 cookies_file_path= "youtube_cookies.txt"
@@ -191,22 +198,23 @@ async def download_and_send_pdf(url, name, cc1, m, bot, count):
         count += 1
         return False, count
 
-async def handle_media_download(url, name, cc, cc1, m):
+
+async def handle_media_download(url, name, cc, cc1, m, bot):
     """Main handler for both PDF and video downloads"""
     
     # Handle PDF files
     if ".pdf" in url:
-        return await download_pdf(url, name, cc1, m)
+        return await download_pdf(url, name, cc1, m, bot)
     
     # Handle video files from specific domains
     elif "jw-prod" in url:
-        return await download_video(url, name, cc, m)
+        return await download_video(url, name, cc, m, bot)
     
     else:
         await m.reply_text("Unsupported media type")
         return False, count
 
-async def download_pdf(url, name, cc1, m):
+async def download_pdf(url, name, cc1, m, bot):
     """Async function to download PDF"""
     global count
     try:
@@ -263,7 +271,7 @@ async def download_pdf(url, name, cc1, m):
         count += 1
         return False, count
 
-async def download_video(url, name, cc, m):
+async def download_video(url, name, cc, m, bot):
     """Async function to download video using yt-dlp with headers"""
     global count
     try:
