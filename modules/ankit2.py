@@ -199,12 +199,12 @@ async def download_and_send_pdf(url, name, cc1, m, bot, count):
         return False, count
 
 
-async def handle_media_download(url, name, cc, cc1, m, bot):
+async def handle_media_download(url, name, cc, cc1, m):
     """Main handler for both PDF and video downloads"""
     
     # Handle PDF files
     if ".pdf" in url:
-        return await download_pdf(url, name, cc1, m, bot)
+        return await download_pdf(url, name, cc1, m)
     
     # Handle video files from specific domains
     elif "jw-prod" in url:
@@ -214,7 +214,7 @@ async def handle_media_download(url, name, cc, cc1, m, bot):
         await m.reply_text("Unsupported media type")
         return False, count
 
-async def download_pdf(url, name, cc1, m, bot):
+async def download_pdf(url, name, cc1, m):
     """Async function to download PDF"""
     global count
     try:
@@ -271,7 +271,7 @@ async def download_pdf(url, name, cc1, m, bot):
         count += 1
         return False, count
 
-async def download_video(url, name, cc, m, bot):
+async def download_video(url, name, cc, m):
     """Async function to download video using yt-dlp with headers"""
     global count
     try:
@@ -823,7 +823,7 @@ async def txt_handler(bot: Client, m: Message):
             
             
             if "jw-prod" in url:
-                success, count = await handle_media_download(url, name, cc, m, bot)
+                success, count = await handle_media_download(url, name, cc, m)
                 if not success:
                     continue 
     
@@ -856,7 +856,7 @@ async def txt_handler(bot: Client, m: Message):
                         continue
 
                 elif "apps-s3-prod.utkarshapp.com" in url:
-                    success, count = await handle_media_download(url, name, cc1, m, bot)
+                    success, count = await handle_media_download(url, name, cc1, m)
                     if not success:
                         # Agar fail ho gaya toh continue karein
                         continue
