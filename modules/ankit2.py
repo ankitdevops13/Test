@@ -190,7 +190,136 @@ async def download_and_send_pdf(url, name, cc1, m, bot, count):
         await m.reply_text(f"Error: {str(e)}")
         count += 1
         return False, count
+
+async def handle_media_download(url, name, cc, cc1, m, bot, count):
+    """Main handler for both PDF and video downloads"""
     
+    # Handle PDF files
+    if ".pdf" in url:
+        return await download_pdf(url, name, cc1, m, bot, count)
+    
+    # Handle video files from specific domains
+    elif "jw-prod" in url or "utkarshapp" in url:
+        return await download_video(url, name, cc, m, bot, count)
+    
+    else:
+        await m.reply_text("Unsupported media type")
+        return False, count
+
+async def download_pdf(url, name, cc1, m, bot, count):
+    """Async function to download PDF"""
+    try:
+        await asyncio.sleep(4)
+        url = url.replace(" ", "%20")
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://utkarshapp.com/',
+            'Origin': 'https://utkarshapp.com',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+        }
+        
+        import requests
+        response = await asyncio.to_thread(requests.get, url, headers=headers, verify=False, timeout=30)
+        
+        if response.status_code == 200:
+            with open(f"{name}.pdf", 'wb') as f:
+                f.write(response.content)
+            
+            if os.path.getsize(f"{name}.pdf") > 0:
+                await asyncio.sleep(4)
+                await bot.send_document(chat_id=m.chat.id, document=f'{name}.pdf', caption=cc1)
+                count += 1
+                os.remove(f'{name}.pdf')
+                return True, count
+            else:
+                await m.reply_text(f"Failed: Downloaded file is empty")
+                count += 1
+                return False, count
+        else:
+            await m.reply_text(f"Failed to download PDF: {response.status_code} {response.reason}")
+            count += 1
+            return False, count
+            
+    except FloodWait as e:
+        await m.reply_text(str(e))
+        time.sleep(e.x)
+        count += 1
+        return False, count
+    except Exception as e:
+        await m.reply_text(f"Error: {str(e)}")
+        count += 1
+        return False, count
+
+async def download_video(url, name, cc, m, bot, count):
+    """Async function to download video using yt-dlp with headers"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'EN',
+            'api-version': '18',
+            'app-version': '1.4.73.2',
+            'build-number': '35',
+            'device-details': 'Xiaomi_Redmi 7_SDK-32',
+            'device-id': 'c28d3cb16bbdac01',
+            'region': 'IN',
+            'Referer': 'https://utkarshapp.com/'
+        }
+        
+        cmd = ['yt-dlp']
+        for key, value in headers.items():
+            cmd.extend(['--add-header', f'{key}: {value}'])
+        cmd.extend(['--downloader', 'aria2c', '--downloader-args', 'aria2c:-x16 -j32', '-o', f'{name}.mp4', url])
+        
+        # Run async
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode == 0:
+            if os.path.exists(f'{name}.mp4') and os.path.getsize(f'{name}.mp4') > 0:
+                await bot.send_video(
+                    chat_id=m.chat.id, 
+                    video=open(f'{name}.mp4', 'rb'), 
+                    caption=cc1
+                )
+                os.remove(f'{name}.mp4')
+                count += 1
+                return True, count
+            else:
+                await m.reply_text("Downloaded file is empty or corrupted")
+                count += 1
+                return False, count
+        else:
+            error_msg = stderr.decode() if stderr else "Unknown error"
+            await m.reply_text(f"Download failed: {error_msg}")
+            count += 1
+            return False, count
+            
+    except FloodWait as e:
+        await m.reply_text(str(e))
+        time.sleep(e.x)
+        count += 1
+        return False, count
+    except Exception as e:
+        await m.reply_text(f"Error downloading video: {str(e)}")
+        count += 1
+        return False, count
+        
 @bot.on_message(filters.command("auth") & filters.private)
 async def authorize_user(client: Client, message: Message):
     user_id = message.from_user.id
@@ -615,8 +744,6 @@ async def txt_handler(bot: Client, m: Message):
                     content = url.split("master.m3u8&contentHashIdl=")[1]
                 
                 
-                    
-                
                 headers = {
                     'host': 'api.classplusapp.com',
                     'x-access-token': f'{raw_text4}',    
@@ -685,31 +812,10 @@ async def txt_handler(bot: Client, m: Message):
                 ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
             
             
-            if "jw-prod" in url or "utkarshapp" in url:
-                headers = [
-                    '--add-header "User-Agent: Mozilla/5.0" '
-                    '--add-header "Referer: https://utkarshapp.com/" '
-                    '--add-header "Accept-Language: EN" '
-                    '--add-header "build-number: 35" '
-                    '--add-header "connection: Keep-Alive" '
-                    '--add-header "content-type: application/json" '
-                    '--add-header "device-details: Xiaomi_Redmi 7_SDK-32" '
-                    '--add-header "device-id: c28d3cb16bbdac01" '
-                    '--add-header "region: IN" '
-                    '--add-header "webengage-luid: 00000187-6fe4-5d41-a530-26186858be4c" '
-                    '--add-header "accept-encoding: gzip" '
-               ]
-                cmd = [
-                 'yt-dlp',
-                 *headers,
-                 '--downloader', 'aria2c',
-                 '--downloader-args', 'aria2c:-x16 -j32',
-                 '-o', f'{name}.mp4',
-                 url
-                ]
-                
-                import subprocess
-                result = subprocess.run(cmd, capture_output=True, text=True)
+            if "jw-prod" in url:
+                success, count = await handle_media_download(url, name, cc, m, bot, count)
+                if not success:
+                    continue 
     
                 
             elif "youtube.com" in url or "youtu.be" in url:
@@ -739,6 +845,11 @@ async def txt_handler(bot: Client, m: Message):
                         count+=1
                         continue
 
+                elif "apps-s3-prod.utkarshapp.com" in url:
+                    success, count = await handle_media_download(url, name, cc1, m, bot, count)
+                    if not success:
+                        # Agar fail ho gaya toh continue karein
+                        continue
 
                 elif ".pdf" in url:
                     try:
@@ -761,12 +872,6 @@ async def txt_handler(bot: Client, m: Message):
                         count += 1
                         continue
 
-                # Aapke main code mein jahan pehle PDF code tha, wahan ab yeh use karein:
-                elif "apps-s3-prod.utkarshapp.com" in url:
-                    success, count = await download_and_send_pdf(url, name, cc1, m, bot, count)
-                    if not success:
-                        # Agar fail ho gaya toh continue karein
-                        continue
                            
                 elif ".pdf" in url:
                     try:
