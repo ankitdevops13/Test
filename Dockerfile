@@ -10,4 +10,4 @@ WORKDIR /app/
 RUN pip install --upgrade pip -r requirements.txt
 ENV COOKIES_FILE_PATH="/modules/youtube_cookies.txt"
 
-CMD gunicorn app:app & python3 modules/main.py
+CMD gunicorn app:app & python3 modules/ankit2.py
