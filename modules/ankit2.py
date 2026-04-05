@@ -56,7 +56,7 @@ auth_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiNzM0MTA1OTA2N
 
 
 cookies_file_path= "youtube_cookies.txt"
-
+count = 0
 
 auth_users = [1226915008,6748792256,8085418235,5817712634,8172689585]
 import sqlite3
@@ -191,23 +191,24 @@ async def download_and_send_pdf(url, name, cc1, m, bot, count):
         count += 1
         return False, count
 
-async def handle_media_download(url, name, cc, cc1, m, bot, count):
+async def handle_media_download(url, name, cc, cc1, m, bot):
     """Main handler for both PDF and video downloads"""
     
     # Handle PDF files
     if ".pdf" in url:
-        return await download_pdf(url, name, cc1, m, bot, count)
+        return await download_pdf(url, name, cc1, m, bot)
     
     # Handle video files from specific domains
-    elif "jw-prod" in url or "utkarshapp" in url:
-        return await download_video(url, name, cc, m, bot, count)
+    elif "jw-prod" in url:
+        return await download_video(url, name, cc, m, bot)
     
     else:
         await m.reply_text("Unsupported media type")
         return False, count
 
-async def download_pdf(url, name, cc1, m, bot, count):
+async def download_pdf(url, name, cc1, m, bot):
     """Async function to download PDF"""
+    global count
     try:
         await asyncio.sleep(4)
         url = url.replace(" ", "%20")
@@ -262,8 +263,9 @@ async def download_pdf(url, name, cc1, m, bot, count):
         count += 1
         return False, count
 
-async def download_video(url, name, cc, m, bot, count):
+async def download_video(url, name, cc, m, bot):
     """Async function to download video using yt-dlp with headers"""
+    global count
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -295,7 +297,7 @@ async def download_video(url, name, cc, m, bot, count):
                 await bot.send_video(
                     chat_id=m.chat.id, 
                     video=open(f'{name}.mp4', 'rb'), 
-                    caption=cc1
+                    caption=cc
                 )
                 os.remove(f'{name}.mp4')
                 count += 1
@@ -813,7 +815,7 @@ async def txt_handler(bot: Client, m: Message):
             
             
             if "jw-prod" in url:
-                success, count = await handle_media_download(url, name, cc, m, bot, count)
+                success, count = await handle_media_download(url, name, cc, m, bot)
                 if not success:
                     continue 
     
@@ -846,7 +848,7 @@ async def txt_handler(bot: Client, m: Message):
                         continue
 
                 elif "apps-s3-prod.utkarshapp.com" in url:
-                    success, count = await handle_media_download(url, name, cc1, m, bot, count)
+                    success, count = await handle_media_download(url, name, cc1, m, bot)
                     if not success:
                         # Agar fail ho gaya toh continue karein
                         continue
