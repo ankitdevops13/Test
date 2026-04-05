@@ -191,22 +191,22 @@ async def download_and_send_pdf(url, name, cc1, m, bot, count):
         count += 1
         return False, count
 
-async def handle_media_download(url, name, cc, cc1, m, bot):
+async def handle_media_download(url, name, cc, cc1, m):
     """Main handler for both PDF and video downloads"""
     
     # Handle PDF files
     if ".pdf" in url:
-        return await download_pdf(url, name, cc1, m, bot)
+        return await download_pdf(url, name, cc1, m)
     
     # Handle video files from specific domains
     elif "jw-prod" in url:
-        return await download_video(url, name, cc, m, bot)
+        return await download_video(url, name, cc, m)
     
     else:
         await m.reply_text("Unsupported media type")
         return False, count
 
-async def download_pdf(url, name, cc1, m, bot):
+async def download_pdf(url, name, cc1, m):
     """Async function to download PDF"""
     global count
     try:
@@ -263,7 +263,7 @@ async def download_pdf(url, name, cc1, m, bot):
         count += 1
         return False, count
 
-async def download_video(url, name, cc, m, bot):
+async def download_video(url, name, cc, m):
     """Async function to download video using yt-dlp with headers"""
     global count
     try:
