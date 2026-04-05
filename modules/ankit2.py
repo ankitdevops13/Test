@@ -130,6 +130,67 @@ def get_all_auth_users():
     conn.close()
     return users
 
+
+async def download_and_send_pdf(url, name, cc1, m, bot, count):
+    """Async function to download PDF and send to Telegram"""
+    try:
+        await asyncio.sleep(4)
+        url = url.replace(" ", "%20")
+        
+        # Chrome-like headers for requests
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://utkarshapp.com/',
+            'Origin': 'https://utkarshapp.com',
+            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'same-origin',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+        }
+        
+        # Use requests in thread pool to avoid blocking
+        import requests
+        response = await asyncio.to_thread(requests.get, url, headers=headers, verify=False, timeout=30)
+        
+        if response.status_code == 200:
+            # Save PDF
+            with open(f"{name}.pdf", 'wb') as f:
+                f.write(response.content)
+            
+            # Check if file is valid
+            if os.path.getsize(f"{name}.pdf") > 0:
+                await asyncio.sleep(4)
+                copy = await bot.send_document(chat_id=m.chat.id, document=f'{name}.pdf', caption=cc1)
+                count += 1
+                os.remove(f'{name}.pdf')
+                return True, count  # Success
+            else:
+                await m.reply_text(f"Failed: Downloaded file is empty")
+                count += 1
+                return False, count  # Failed - empty file
+        else:
+            await m.reply_text(f"Failed to download PDF: {response.status_code} {response.reason}")
+            count += 1
+            return False, count  # Failed - wrong status code
+            
+    except FloodWait as e:
+        await m.reply_text(str(e))
+        time.sleep(e.x)
+        count += 1
+        return False, count
+    except Exception as e:
+        await m.reply_text(f"Error: {str(e)}")
+        count += 1
+        return False, count
+    
 @bot.on_message(filters.command("auth") & filters.private)
 async def authorize_user(client: Client, message: Message):
     user_id = message.from_user.id
@@ -623,12 +684,37 @@ async def txt_handler(bot: Client, m: Message):
             else:
                 ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
             
-            if "jw-prod" in url:
-                cmd = f'yt-dlp -o "{name}.mp4" "{url}"'
-
-            #elif "youtube.com" in url or "youtu.be" in url:
-                #cmd = f'yt-dlp --cookies youtube_cookies.txt -f "{ytf}" "{url}" -o "{name}".mp4'
-
+            
+            if "jw-prod" in url or "utkarshapp" in url:
+                headers = [
+                    '--add-header "User-Agent: Mozilla/5.0" '
+                    '--add-header "Referer: https://utkarshapp.com/" '
+                    '--add-header "Accept-Language: EN" '
+                    '--add-header "build-number: 35" '
+                    '--add-header "connection: Keep-Alive" '
+                    '--add-header "content-type: application/json" '
+                    '--add-header "device-details: Xiaomi_Redmi 7_SDK-32" '
+                    '--add-header "device-id: c28d3cb16bbdac01" '
+                    '--add-header "region: IN" '
+                    '--add-header "webengage-luid: 00000187-6fe4-5d41-a530-26186858be4c" '
+                    '--add-header "accept-encoding: gzip" '
+               ]
+                cmd = [
+                 'yt-dlp',
+                 *headers,
+                 '--downloader', 'aria2c',
+                 '--downloader-args', 'aria2c:-x16 -j32',
+                 '-o', f'{name}.mp4',
+                 url
+                ]
+                
+                import subprocess
+                result = subprocess.run(cmd, capture_output=True, text=True)
+    
+                
+            elif "youtube.com" in url or "youtu.be" in url:
+                cmd = f'yt-dlp --cookies youtube_cookies.txt -f "{ytf}" "{url}" -o "{name}".mp4'
+                
             else:
                 cmd = f'yt-dlp -f "{ytf}" "{url}" -o "{name}.mp4"'
 
@@ -675,6 +761,13 @@ async def txt_handler(bot: Client, m: Message):
                         count += 1
                         continue
 
+                # Aapke main code mein jahan pehle PDF code tha, wahan ab yeh use karein:
+                elif "apps-s3-prod.utkarshapp.com" in url:
+                    success, count = await download_and_send_pdf(url, name, cc1, m, bot, count)
+                    if not success:
+                        # Agar fail ho gaya toh continue karein
+                        continue
+                           
                 elif ".pdf" in url:
                     try:
                         cmd = f'yt-dlp -o "{name}.pdf" "{url}"'
